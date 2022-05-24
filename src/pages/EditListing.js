@@ -6,17 +6,18 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-toastify";
 
-const CreateListing = () => {
+const EditListing = () => {
   // eslint-disable-next-line
   const [geolocationEnabled, setGeolocationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [listing, setListing] = useState(false);
   const [formData, setFormData] = useState({
     type: "rent",
     name: "",
@@ -51,7 +52,36 @@ const CreateListing = () => {
 
   const auth = getAuth();
   const navigate = useNavigate();
+  const params = useParams();
   const isMounted = useRef(true);
+
+  //redirect if listing is not users
+  useEffect(() => {
+    if (listing && listing.userRef !== auth.currentUser.uid) {
+      toast.error("You can not edit that listing");
+      navigate("/");
+    }
+  });
+
+  //fetch listing to edit
+  useEffect(() => {
+    setLoading(true);
+    const fetchListings = async () => {
+      const docRef = doc(db, "listings", params.listingId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setListing(docSnap.data());
+        setFormData({ ...docSnap.data(), address: docSnap.data().location });
+        setLoading(false);
+      } else {
+        navigate("/");
+        toast.error("Listing does not exist");
+      }
+    };
+    fetchListings();
+  }, [navigate, params.listingId]);
+
+  //fetch user data
   useEffect(() => {
     if (isMounted) {
       onAuthStateChanged(auth, (user) => {
@@ -88,7 +118,9 @@ const CreateListing = () => {
         `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${process.env.REACT_APP_GEOCODE_API_KEY}`
       );
       const data = await response.json();
+      // eslint-disable-next-line
       geolocation.lat = data.results[0]?.geometry.location.lat ?? 0;
+      // eslint-disable-next-line
       geolocation.lng = data.results[0]?.geometry.location.lng ?? 0;
       location =
         data.status === "ZERO_RESULTS"
@@ -119,6 +151,7 @@ const CreateListing = () => {
             const progress =
               (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             console.log("Upload is " + progress + "% done");
+
             switch (snapshot.state) {
               case "paused":
                 console.log("Upload is paused");
@@ -161,7 +194,9 @@ const CreateListing = () => {
 
     !formDataCopy.offer && delete formDataCopy.discountedPrice;
 
-    const docRef = await addDoc(collection(db, "listings"), formDataCopy);
+    //updateListing
+    const docRef = doc(db, "listings", params.listingId);
+    await updateDoc(docRef, formDataCopy);
 
     setLoading(false);
     toast.success("Listing saved");
@@ -194,7 +229,7 @@ const CreateListing = () => {
   return (
     <div className='profile'>
       <header>
-        <p className='pageHeader'>Create a Listing</p>
+        <p className='pageHeader'>Edit Listing</p>
       </header>
       <main>
         <form onSubmit={onSubmit}>
@@ -413,7 +448,7 @@ const CreateListing = () => {
             required
           />
           <button className='primaryButton CreateListingButton' type='submit'>
-            Create Listing
+            Edit Listing
           </button>
         </form>
       </main>
@@ -421,4 +456,4 @@ const CreateListing = () => {
   );
 };
 
-export default CreateListing;
+export default EditListing;
