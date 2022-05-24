@@ -412,6 +412,8 @@ const CreateListing = () => {
             multiple
             required
           />
+          <br />
+          <br />
           <button className='primaryButton CreateListingButton' type='submit'>
             Create Listing
           </button>
