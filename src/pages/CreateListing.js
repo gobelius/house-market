@@ -163,7 +163,7 @@ const CreateListing = () => {
 
     setLoading(false);
     toast.success("Listing saved");
-    navigate(`/categories/${formDataCopy.type}/${docRef.id}`);
+    navigate(`/category/${formDataCopy.type}/${docRef.id}`);
   };
   const onMutate = (e) => {
     let boolean = null;
